@@ -30,8 +30,18 @@ jobs:
             const PROP_ZENDESK  = 'Zendesk';
             const PROP_NOTASCS  = 'Notas CS';
 
-            const head   = context.payload.head_commit || {};
-            const author = head.author?.name || context.payload.pusher?.name || 'Desconhecido';
+            const commits = (context.payload.commits || []);
+            const hasTipo = (msg) => /(^|\s):tipo\s+\S+/i.test(msg || '');
+            const chosen = [...commits].reverse().find(c => hasTipo(c.message));
+
+            if (!chosen) {
+              core.notice('Nenhum commit com marcador ":tipo" neste push. Nada será enviado ao Notion.');
+              core.setOutput('payload','');
+              core.setOutput('nextVersion','');
+              return;
+            }
+
+            const author = chosen.author?.name || context.payload.pusher?.name || 'Desconhecido';
             const today  = new Date().toISOString().slice(0,10);
 
             const semverRe = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -41,6 +51,7 @@ jobs:
             };
 
             const cmpSemver = (a,b) => a.major-b.major || a.minor-b.minor || a.patch-b.patch;
+
             const headers = {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -59,23 +70,23 @@ jobs:
                 core.setFailed(`Erro ao consultar Notion DB: ${res.status} ${t}`);
                 return;
               }
-            
+              
               const data = await res.json();
-              for (const page of (data.results || [])) {
+              for (const page of data.results || []) {
                 const prop = page.properties?.[PROP_VERSION];
                 const title = (prop?.type === 'title' ? prop.title : null) || [];
                 const text = (title[0]?.plain_text || '').trim();
                 const v = parseSemver(text);
                 if (v && (!max || cmpSemver(v,max) > 0)) { max = v; maxStr = text; }
               }
-            
+              
               if (!data.has_more) break;
               start_cursor = data.next_cursor;
             }
             
             if (!max) { max = {major:0, minor:0, patch:0}; maxStr = '0.0.0'; }
 
-            const fullMsg = (head.message || '').trim();
+            const fullMsg = (chosen.message || '').trim();
             const parts = fullMsg.split(/\r?\n\r?\n/);
             const title = (parts[0] || '').trim();
             const body  = parts.slice(1).join('\n\n').trim();
@@ -96,7 +107,6 @@ jobs:
             const normalize = (s) => (s || '').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase().trim();
             const tipoOriginal = tags.tipo || '';
             const tipoNorm = normalize(tipoOriginal);
-
             const isBug = ['bug','fix','hotfix','correcao','correção'].includes(tipoNorm);
             const isMelhoria = ['melhoria','feature','feat','improvement','enhancement'].includes(tipoNorm);
 
@@ -106,10 +116,11 @@ jobs:
             } else if (isMelhoria) {
               next.minor += 1;
             } else {
-              // ...
+              core.notice('Marcador :tipo não reconhecido; versão mantida.');
             }
-            
+
             const nextStr = `${next.major}.${next.minor}.${next.patch}`;
+
             const normalizeUrl = (u) => {
               if (!u) return '';
               let t = u.trim();
@@ -124,16 +135,15 @@ jobs:
 
             let bodyLimpo = body;
             for (const re of Object.values(rgx)) bodyLimpo = bodyLimpo.replace(re, '').trim();
-
-            core.info(`Última versão: ${maxStr} | Nova: ${nextStr}`);
-            core.info(`Tipo: "${tipoOriginal || 'N/A'}" | Cliente: "${clienteTxt}" | Zendesk: "${zendeskTxt}" | NotasCS: "${notasCSTxt}"`);
+            
+            core.info(`Commit escolhido: ${chosen.id.substring(0,7)} | Última versão: ${maxStr} | Nova: ${nextStr}`);
 
             const payload = {
               parent: { database_id: DB_ID },
               properties: {
                 [PROP_VERSION]:  { title: [{ text: { content: nextStr } }] },
                 [PROP_CLIENTES]: { rich_text: clienteTxt ? [{ text: { content: clienteTxt } }] : [] },
-                [PROP_TIPO]:     { select: { name: (tipoOriginal || 'Bug') } },
+                [PROP_TIPO]:     { select: { name: (tipoOriginal || 'N/A') } },
                 [PROP_DATA]:     { date: { start: today } },
                 [PROP_RESP]:     { multi_select: [{ name: author }] },
                 [PROP_NOTASINT]: { rich_text: title ? [{ text: { content: title } }] : [] },
