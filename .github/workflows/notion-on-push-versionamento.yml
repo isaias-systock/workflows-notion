@@ -3,7 +3,7 @@ name: Notion on push with semver bump
 on:
   push:
     branches:
-      - 'master'
+      - '**'
 
 jobs:
   notion:
