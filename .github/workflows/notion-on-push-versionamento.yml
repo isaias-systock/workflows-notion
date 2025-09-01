@@ -155,6 +155,3 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Notion-Version: 2022-06-28" \
             --data '${{ steps.build.outputs.payload }}'
-
-      - name: Exibindo a nova versão cadastrada
-        run: echo "Nova versão: ${{ steps.build.outputs.nextVersion }}"
