@@ -9,7 +9,7 @@ jobs:
   notion:
     runs-on: ubuntu-latest
     steps:
-      - name: Calculando a versão correta para montar o payload
+      - name: Calculando a versão correta para montar payload
         id: build
         uses: actions/github-script@v7
         env:
@@ -21,32 +21,29 @@ jobs:
             const DB_ID = process.env.NOTION_DATABASE_ID;
             const token = process.env.NOTION_TOKEN;
 
-            const PROP_VERSION = 'Versão';
+            const PROP_VERSION  = 'Versão';
             const PROP_CLIENTES = 'Clientes';
-            const PROP_TIPO = 'Tipo';
-            const PROP_DATA = 'Data de Lançamento';
-            const PROP_RESP = 'Responsável';
-            const PROP_NOTAS_INT = 'Notas Internas';
-            const PROP_ZENDESK = 'Zendesk';
-            const PROP_NOTAS_CS = 'Notas CS';
+            const PROP_TIPO     = 'Tipo';
+            const PROP_DATA     = 'Data de Lançamento';
+            const PROP_RESP     = 'Responsável';
+            const PROP_NOTASINT = 'Notas Internas';
+            const PROP_ZENDESK  = 'Zendesk';
+            const PROP_NOTASCS  = 'Notas CS';
 
             const branch = (context.payload.ref || '').replace('refs/heads/','');
-            const head = context.payload.head_commit || {};
+            const head   = context.payload.head_commit || {};
             const author = head.author?.name || context.payload.pusher?.name || 'Desconhecido';
-            const today = new Date().toISOString().slice(0,10);
+            const today  = new Date().toISOString().slice(0,10);
 
-            const isHotfix = branch.startsWith('hotfix/');
+            const isHotfix  = branch.startsWith('hotfix/');
             const isFeature = branch.startsWith('feature/');
 
             const semverRe = /^(\d+)\.(\d+)\.(\d+)$/;
             const parseSemver = (s) => {
               const m = (s||'').trim().match(semverRe);
-              if (!m) return null;
-              return { major: +m[1], minor: +m[2], patch: +m[3] };
+              return m ? { major:+m[1], minor:+m[2], patch:+m[3] } : null;
             };
-            const cmpSemver = (a,b) => (
-              a.major - b.major || a.minor - b.minor || a.patch - b.patch
-            );
+            const cmpSemver = (a,b) => a.major-b.major || a.minor-b.minor || a.patch-b.patch;
 
             const headers = {
               'Authorization': `Bearer ${token}`,
@@ -54,22 +51,13 @@ jobs:
               'Notion-Version': NOTION_VERSION
             };
 
-            let start_cursor = undefined;
-            let max = null;
-            let maxStr = null;
-
+            let start_cursor, max = null, maxStr = null;
             while (true) {
-              const body = {
-                page_size: 100,
-                start_cursor
-              };
-            
               const res = await fetch(`https://api.notion.com/v1/databases/${DB_ID}/query`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(body)
+                method: 'POST', headers,
+                body: JSON.stringify({ page_size: 100, start_cursor })
               });
-              
+            
               if (!res.ok) {
                 const t = await res.text();
                 core.setFailed(`Erro ao consultar Notion DB: ${res.status} ${t}`);
@@ -79,65 +67,79 @@ jobs:
               const data = await res.json();
               for (const page of data.results || []) {
                 const prop = page.properties?.[PROP_VERSION];
-                const titleObj = prop?.type === 'title' ? prop.title : null;
-                const text = (titleObj && titleObj.length ? titleObj[0].plain_text : '').trim();
+                const title = (prop?.type === 'title' ? prop.title : null) || [];
+                const text = (title[0]?.plain_text || '').trim();
                 const v = parseSemver(text);
-                
-                if (v) {
-                  if (!max || cmpSemver(v,max) > 0) {
-                    max = v;
-                    maxStr = text;
-                  }
-                }
+                if (v && (!max || cmpSemver(v,max) > 0)) { max = v; maxStr = text; }
               }
-
+            
               if (!data.has_more) break;
               start_cursor = data.next_cursor;
             }
-
-            if (!max) {
-              max = { major: 0, minor: 0, patch: 0 };
-              maxStr = '0.0.0';
-            }
+            
+            if (!max) { max = {major:0, minor:0, patch:0}; maxStr = '0.0.0'; }
 
             let next = {...max};
-            let tipo = null;
-            
-            if (isHotfix) {
-              next.patch += 1;  // hotfix: 4.3.2 -> 4.3.3
-              tipo = 'Bug';
-            } else if (isFeature) {
-              next.minor += 1;  // feature: 4.3.2 -> 4.4.2
-              tipo = 'Melhoria';
-            } else {
-              // ...
-            }
-            
+            if (isHotfix)   next.patch += 1;  // 4.3.2 -> 4.3.3
+            else if (isFeature) next.minor += 1;  // 4.3.2 -> 4.4.2)
             const nextStr = `${next.major}.${next.minor}.${next.patch}`;
-            core.info(`Última versão encontrada: ${maxStr} | Nova versão: ${nextStr}`);
+
+            const fullMsg = (head.message || '').trim();
+            const parts = fullMsg.split(/\r?\n\r?\n/);
+            const title = (parts[0] || '').trim();
+            const body  = parts.slice(1).join('\n\n').trim();
+
+            const rgx = {
+              cliente: /:cliente\s+(.+?)(?=\s+:\w+|$)/is,
+              zendesk: /:zendesk\s+(\S+)(?=\s+:\w+|$)/is,
+              notascs: /:notascs?\s+(.+?)(?=\s+:\w+|$)/is
+            };
+
+            const tags = {};
+            for (const [k,re] of Object.entries(rgx)) {
+              const m = body.match(re);
+              if (m) tags[k] = m[1].trim();
+            }
+
+            const normalizeUrl = (u) => {
+              if (!u) return '';
+              let t = u.trim();
+              t = t.replace(/^https\/\/:/i, 'https://');
+              if (!/^https?:\/\//i.test(t)) t = 'https://' + t.replace(/^https?[:/]+/i,'');
+              return t;
+            };
+
+            const clienteTxt = tags.cliente || '';
+            const zendeskTxt = normalizeUrl(tags.zendesk || '');
+            const notasCSTxt = tags.notascs || '';
+
+            let bodyLimpo = body;
+            for (const re of Object.values(rgx)) bodyLimpo = bodyLimpo.replace(re, '').trim();
+
+            core.info(`Commit -> Título: "${title}" | Cliente: "${clienteTxt}" | Zendesk: "${zendeskTxt}" | NotasCS: "${notasCSTxt}"`);
 
             const payload = {
               parent: { database_id: DB_ID },
               properties: {
-                [PROP_VERSION]: { title: [{ text: { content: nextStr } }] },
-                [PROP_CLIENTES]: { rich_text: [{ text: { content: 'EMPRESA X' } }] },
-                [PROP_TIPO]: { select: { name: tipo } },
-                [PROP_DATA]: { date: { start: today } },
-                [PROP_RESP]: { multi_select: [{ name: author }] },
-                [PROP_NOTAS_INT]: { rich_text: [{ text: { content: head.message || '' } }] },
-                [PROP_ZENDESK]: { rich_text: [{ text: { content: head.id || '' } }] },
-                [PROP_NOTAS_CS]: { rich_text: [{ text: { content: `Repo: ${context.payload.repository.full_name} · Branch: ${branch} · Compare: ${context.payload.compare}` } }] }
+                [PROP_VERSION]:  { title: [{ text: { content: nextStr } }] },
+                [PROP_CLIENTES]: { rich_text: clienteTxt ? [{ text: { content: clienteTxt } }] : [] },
+                [PROP_TIPO]:     { select: { name: 'Bug' } },
+                [PROP_DATA]:     { date: { start: today } },
+                [PROP_RESP]:     { multi_select: [{ name: author }] },
+                [PROP_NOTASINT]: { rich_text: title ? [{ text: { content: title } }] : [] },
+                [PROP_ZENDESK]:  { rich_text: zendeskTxt ? [{ text: { content: zendeskTxt } }] : [] },
+                [PROP_NOTASCS]:  { rich_text: notasCSTxt ? [{ text: { content: notasCSTxt } }] : [] }
               },
               children: [
                 {
                   object: 'block',
                   type: 'heading_2',
-                  heading_2: { rich_text: [{ type: 'text', text: { content: 'Commit' } }] }
+                  heading_2: { rich_text: [{ type: 'text', text: { content: 'Descrição' } }] }
                 },
                 {
                   object: 'block',
                   type: 'paragraph',
-                  paragraph: { rich_text: [{ type: 'text', text: { content: head.message || 'Sem mensagem' } }] }
+                  paragraph: { rich_text: [{ type: 'text', text: { content: bodyLimpo || 'Sem descrição' } }] }
                 }
               ]
             };
