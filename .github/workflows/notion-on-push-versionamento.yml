@@ -1,0 +1,69 @@
+name: Notificar Notion ao fazer push
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  notify-notion:
+    if: ${{ github.event.head_commit != null }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preparar payload para o Notion
+        id: payload
+        uses: actions/github-script@v7
+        env:
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        with:
+          script: |
+            const evt = context.payload;
+            const head = evt.head_commit || {};
+            const branch = (evt.ref || '').replace('refs/heads/','');
+            const author = head.author?.name || evt.pusher?.name || 'Desconhecido';
+            const versionGuess = branch || 'snapshot';
+            const today = new Date().toISOString().slice(0,10);
+
+            const body = {
+              parent: { database_id: process.env.NOTION_DATABASE_ID },
+              properties: {
+                "Versão": { "title": [{ "text": { "content": versionGuess } }] },
+                "Clientes": { "rich_text": [{ "text": { "content": "EMPRESA X" } }] },
+                "Tipo": { "select": { "name": "Bug" } },
+                "Data de Lançamento": { "date": { "start": today } },
+                "Responsável": { "multi_select": [{ "name": author }] },
+                "Notas Internas": { "rich_text": [{ "text": { "content": head.message || "" } }] },
+                "Zendesk": { "rich_text": [{ "text": { "content": head.id || "" } }] },
+                "Notas CS": { "rich_text": [{ "text": { "content": `Repo: ${evt.repository.full_name} · Branch: ${branch} · Compare: ${evt.compare}` } }] }
+              },
+              "children": [
+                {
+                  "object": "block",
+                  "type": "heading_2",
+                  "heading_2": {
+                    "rich_text": [{ "type": "text", "text": { "content": "Commit" } }]
+                  }
+                },
+                {
+                  "object": "block",
+                  "type": "paragraph",
+                  "paragraph": {
+                    "rich_text": [
+                      { "type": "text", "text": { "content": head.message || "Sem mensagem" } }
+                    ]
+                  }
+                }
+              ]
+            };
+
+            core.setOutput('json', JSON.stringify(body));
+
+      - name: Enviar para o Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_API_KEY }}
+        run: |
+          curl -sS -X POST "https://api.notion.com/v1/pages" \
+            -H "Authorization: Bearer $NOTION_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Notion-Version: 2022-06-28" \
+            --data '${{ steps.payload.outputs.json }}'
