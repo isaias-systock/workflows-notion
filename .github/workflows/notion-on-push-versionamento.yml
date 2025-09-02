@@ -131,7 +131,7 @@ jobs:
             const clienteNames = splitNames(tags.cliente || '');
             const zendeskTxt = normalizeUrl(tags.zendesk || '');
             const notasCSTxt = tags.notascs || '';
-            const respNamesFromTag = splitNames(tags.responsavel || '');
+            let respNamesFromTag = splitNames(tags.responsavel || '');
 
             const wantedPeople = 
               respNamesFromTag.length ? respNamesFromTag
@@ -204,7 +204,7 @@ jobs:
               return chosen;
             };
   
-            const respNamesFromTag = splitNames(tags.responsavel || '');
+            respNamesFromTag = splitNames(tags.responsavel || '');
             const candidateStrings = respNamesFromTag.length
               ? respNamesFromTag
               : (() => {
