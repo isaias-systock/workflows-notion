@@ -159,19 +159,62 @@ jobs:
             };
 
             const allUsers = await listAllUsers();
+            
             const norm = (s) => normalize(s || '');
-            const findUser = (needle) => {
-              const key = norm(needle);
-              return allUsers.find(u =>
-                norm(u.name) === key ||
-                norm(u.person?.email || '') === key
-              );
+            const splitWords = (s) => (s || '').trim().split(/\s+/).filter(Boolean);
+            const initials = (s) => splitWords(s).map(w => w[0] || '').join('');
+            
+            const scoreUser = (user, needleRaw) => {
+              const needle = norm(needleRaw);
+              if (!needle) return 0;
+            
+              const name = norm(user.name || '');
+              const email = norm(user.person?.email || '');
+              const nameWords = splitWords(name);
+              const needleWords = splitWords(needle);
+            
+              if (email && (email === needle)) return 100;
+              if (name && (name === needle)) return 90;
+              if (name && name.startsWith(needle)) return 80;
+              if (name && name.includes(needle)) return 70;
+              if (nameWords.some(w => w === needle || w.startsWith(needle) || needle.startsWith(w))) return 65;
+              if (initials(name) === needle || initials(needle) === initials(name)) return 60;
+            
+              return 0;
             };
             
-            const peopleResolved = wantedPeople
-              .map(n => findUser(n))
-              .filter(Boolean)
-              .map(u => ({ id: u.id }));
+            const findUsersFuzzy = (candidates, allUsers) => {
+              const chosen = [];
+              const seenIds = new Set();
+            
+              for (const cand of candidates) {
+              let best = null, bestScore = 0;
+              for (const u of allUsers) {
+              const s = scoreUser(u, cand);
+              if (s > bestScore) { bestScore = s; best = u; }
+            }
+              if (best && bestScore >= 60 && !seenIds.has(best.id)) {
+              chosen.push(best);
+              seenIds.add(best.id);
+            } else {
+              core.warning(`Responsável não encontrado com bom match para: "${cand}"`);
+            }
+            }
+  
+              return chosen;
+            };
+  
+            const respNamesFromTag = splitNames(tags.responsavel || '');
+            const candidateStrings = respNamesFromTag.length
+              ? respNamesFromTag
+              : (() => {
+                  const fullAuthor = chosen.author?.name || context.payload.pusher?.name || '';
+                  const first = (fullAuthor.trim().split(/\s+/)[0] || '');
+                return first ? [first] : [];
+              })();
+
+            const peopleMatched = findUsersFuzzy(candidateStrings, allUsers);              
+            const peopleResolved = peopleMatched.map(u => ({ id: u.id }));
 
             const findClientPageId = async (name) => {
               if (!name || !CLIENTS_DB_ID) return null;
@@ -203,8 +246,8 @@ jobs:
             for (const re of Object.values(rgx)) bodyLimpo = bodyLimpo.replace(re, '').trim();
 
             core.info(`Última versão: ${maxStr} | Nova: ${nextStr}`);
-            core.info(`Tipo: "${tipoOriginal || 'N/A'}" | Resp: [${peopleResolved.map(p=>p.id).join(', ')}] | Clientes: [${clientIds.join(', ')}]`);
-
+            core.info(`Tipo: "${tipoOriginal || 'N/A'}" | Resp (candidatos): [${candidateStrings.join(', ')}] | Resp (IDs): [${peopleResolved.map(p=>p.id).join(', ')}] | Clientes: [${clientIds.join(', ')}]`);
+            
             const payload = {
               parent: { database_id: DB_ID },
               properties: {
