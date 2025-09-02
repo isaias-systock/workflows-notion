@@ -222,7 +222,7 @@ jobs:
             core.setOutput('nextVersion', nextStr);
             core.setOutput('payload', JSON.stringify(payload));
 
-      - name: Enviado o registro para o Notion
+      - name: Enviando o registro para o Notion
         if: ${{ steps.build.outputs.payload != '' }}
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_API_KEY }}
