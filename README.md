@@ -23,6 +23,9 @@ como a versão resultante disso.
 
 - Entre no repositório em questão, em: `Settings > Secrets and variables > Actions`
 - Na aba `Repository secrets`, crie os seguintes secrets: `NOTION_API_KEY` `NOTION_DATABASE_ID`
+  `NOTION_CLIENTS_DATABASE_ID`
+- Também temos `CLIENTS_TITLE_PROP` que receberá como valor o nome da coluna em: **NOTION_CLIENTS_DATABASE_ID** que
+  representa o cliente em questão
 
 Para saber mais como adquirir esses valores, acesse: `https://developers.notion.com/reference/intro`
 
@@ -47,14 +50,14 @@ Desde que nosso commit siga a estrutura correta, as informações serão filtrad
 git commit -m "Correção da função X que antes, quebrava a tela Y" -m ":tipo Bug :cliente EMPRESA X :zendesk https//:abc.zendesk.com/ticket/123 :notascs Solicitado pelo usuário beltrano";
 ```
 
-O primeiro `-m` será inserido em 'Notas Internas', observação principal da versão. 
+O primeiro `-m` será inserido em 'Notas Internas', observação principal da versão.
 
 O segundo `-m` será usado para coletar as informações através dos parâmetros, que seram preenchidas em cada coluna.
 
-| Parâmetro    | Valores          | Obrigatório |
-|--------------|------------------|-------------|
-| :tipo        | Bug ou Melhoria  | SIM         |
-| :cliente     | string           | NAO         |
-| :zendesk     | string           | NAO         |
-| :notascs     | string           | NAO         |
-| :responsavel | string           | NAO         |
+| Parâmetro    | Valores         | Obrigatório |
+|--------------|-----------------|-------------|
+| :tipo        | Bug ou Melhoria | SIM         |
+| :cliente     | string          | NAO         |
+| :zendesk     | string          | NAO         |
+| :notascs     | string          | NAO         |
+| :responsavel | string          | NAO         |

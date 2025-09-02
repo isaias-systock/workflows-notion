@@ -246,7 +246,7 @@ jobs:
             for (const re of Object.values(rgx)) bodyLimpo = bodyLimpo.replace(re, '').trim();
 
             core.info(`Última versão: ${maxStr} | Nova: ${nextStr}`);
-            core.info(`Tipo: "${tipoOriginal || 'N/A'}" | Resp (candidatos): [${candidateStrings.join(', ')}] | Resp (IDs): [${peopleResolved.map(p=>p.id).join(', ')}] | Clientes: [${clientIds.join(', ')}]`);
+            core.info(`Tipo: "${tipoOriginal || 'N/A'}" | Responsáveis: (candidatos): [${candidateStrings.join(', ')}] | Clientes: [${clientIds.join(', ')}]`);
             
             const payload = {
               parent: { database_id: DB_ID },
