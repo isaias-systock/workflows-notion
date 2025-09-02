@@ -53,7 +53,7 @@ O segundo `-m` será usado para coletar as informações através dos parâmetro
 
 | Parâmetro    | Valores          | Obrigatório |
 |--------------|------------------|-------------|
-| :tipo        | 'Bug'/'Melhoria' | SIM         |
+| :tipo        | Bug ou Melhoria  | SIM         |
 | :cliente     | string           | NAO         |
 | :zendesk     | string           | NAO         |
 | :notascs     | string           | NAO         |
