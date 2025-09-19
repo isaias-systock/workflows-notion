@@ -2,7 +2,7 @@
 
 Este repositório tem o intuito de abrigar worksflows do github que se conectam á plataforma **Notion** para
 documentação,
-logging e rastreabildiade de informação .
+logging e rastreabildiade de informação.
 
 Como plataforma principal de concentração de informação do **Systock**, a automação dos processos listados acima se faz
 necessário.
