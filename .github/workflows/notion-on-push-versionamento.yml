@@ -35,11 +35,11 @@ jobs:
             const PROP_NOTASCS  = 'Notas CS';
 
             const commits = (context.payload.commits || []);
-            const hasTipo = (msg) => /(^|\s):tipo\s+\S+/i.test(msg || '');
+            const hasTipo = (msg) => /(^|\s):gitflow\s+\S+/i.test(msg || '');
             const chosen = [...commits].reverse().find(c => hasTipo(c.message));
 
             if (!chosen) {
-              core.notice('Nenhum commit com marcador ":tipo" neste push. Nada será enviado ao Notion.');
+              core.notice('Nenhum commit com marcador ":gitflow" neste push. Nada será enviado ao Notion.');
               core.setOutput('payload','');
               core.setOutput('nextVersion','');
               return;
@@ -97,7 +97,7 @@ jobs:
             const body  = parts.slice(1).join('\n\n').trim();
 
             const rgx = {
-              gitflow: /:tipo\s+(.+?)(?=\s+:\w+|$)/is,
+              gitflow: /:gitflow\s+(.+?)(?=\s+:\w+|$)/is,
               cliente: /:cliente\s+(.+?)(?=\s+:\w+|$)/is,
               zendesk: /:zendesk\s+(\S+)(?=\s+:\w+|$)/is,
               notascs: /:notascs?\s+(.+?)(?=\s+:\w+|$)/is,
@@ -110,7 +110,7 @@ jobs:
               if (m) tags[k] = m[1].trim();
             }
 
-            const tipoOriginal = tags.tipo || '';
+            const tipoOriginal = tags.gitflow || '';
             const tipoNorm = normalize(tipoOriginal);
             const isBug = ['bug','fix','hotfix','correcao','correção'].includes(tipoNorm);
             const isMelhoria = ['melhoria','feature','feat','improvement','enhancement'].includes(tipoNorm);
