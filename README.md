@@ -47,7 +47,7 @@ Para saber mais como adquirir esses valores, acesse: `https://developers.notion.
 Desde que nosso commit siga a estrutura correta, as informações serão filtradas de forma automática e serão cadastradas.
 
 ```bash
-git commit -m "Correção da função X que antes, quebrava a tela Y" -m ":tipo Bug :cliente EMPRESA X :zendesk https//:abc.zendesk.com/ticket/123 :notascs Solicitado pelo usuário beltrano";
+git commit -m "Correção da função X que antes, quebrava a tela Y" -m ":gitflow bug :cliente EMPRESA X :zendesk https//:abc.zendesk.com/ticket/123 :notascs Solicitado pelo usuário beltrano";
 ```
 
 O primeiro `-m` será inserido em 'Notas Internas', observação principal da versão.
@@ -56,8 +56,36 @@ O segundo `-m` será usado para coletar as informações através dos parâmetro
 
 | Parâmetro    | Valores         | Obrigatório |
 |--------------|-----------------|-------------|
-| :tipo        | Bug ou Melhoria | SIM         |
+| :gitflow     | bug/melhoria    | SIM         |
 | :cliente     | string          | NAO         |
 | :zendesk     | string          | NAO         |
 | :notascs     | string          | NAO         |
 | :responsavel | string          | NAO         |
+
+### Bonus:
+#### 1. Responsável
+
+Você pode ter o seu usuário detectado automaticamente na hora de enviar uma versão para o Notion. 
+
+Basta que você adote a estrutura para o nome do seu usuário no `git` e no `notion` como o exemplo abaixo:
+
+- Notion: **Isaías Leite**
+- Git: **isaias.leite**
+
+Caso não seja o seu caso, você pode alterá-los seguindo os passos abaixo:
+
+1. No **notion**, vá em: **Settings** > **Preferred name**
+
+2. Já no **Git**, no terminal onde ele está instalado, entre com:
+
+```bash
+git config --global user.name "your.name"
+```
+
+3. Agora basta verificar se a mudança foi aplicada:
+
+```bash
+git config user.name
+```
+
+Pronto! Com os seus usuários normalizados, você não precisa mais usar a flag `:responsavel`.

@@ -97,7 +97,7 @@ jobs:
             const body  = parts.slice(1).join('\n\n').trim();
 
             const rgx = {
-              tipo: /:tipo\s+(.+?)(?=\s+:\w+|$)/is,
+              gitflow: /:tipo\s+(.+?)(?=\s+:\w+|$)/is,
               cliente: /:cliente\s+(.+?)(?=\s+:\w+|$)/is,
               zendesk: /:zendesk\s+(\S+)(?=\s+:\w+|$)/is,
               notascs: /:notascs?\s+(.+?)(?=\s+:\w+|$)/is,
